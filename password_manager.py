@@ -21,7 +21,7 @@ def displayInfo(results): #display all the info selected
     print('-'* WIDTH)
     print('| Service Name' + (' ' * (SERVICE_LENGTH - len('Service Name'))) +    #ugly but it works well when you change legnths
          '| Username' + (' ' * (USERNAME_LEGNTH - len('Username'))) +         
-         '| Password' + (' ' * (PASSWORD_LENGTH - len('Password'))) + '|')
+         '| Password' + (' ' * (PASSWORD_LENGTH - len('Password'))) + '|') #TODO use printf stye to replace
     print('-'* WIDTH)
     for x in results:
         print('| ' + x[0]  + (' ' * (SERVICE_LENGTH - len(x[0]))), end='| ') #more ugly stuff
@@ -29,17 +29,30 @@ def displayInfo(results): #display all the info selected
         print(x[2] + (' ' * (PASSWORD_LENGTH - len(x[2]))), end='|\n')
         print('-'* WIDTH)
 
+def _validate_input(name, size):
+    while len(name) > size:
+        name = input(f'this field can be no longer than {size} characters, please enter again\n:')
+    return name
 
 def addPassword():   # add a password to the database
     ADD_DATA_SQL = "INSERT INTO PASSWORDS VALUES (?,?,?)"
-    _service_name = input('What service what you like to add?\n:')
-    _service_name = _service_name.upper()
-    _service_user = input('What is the username?\n:') #TODO verify that input <= max size
+
+    _service_name = input('What service what you like to add?\n:').strip().upper()
+    if len(_service_name) > SERVICE_LENGTH:
+        _service_name = _validate_input(_service_name, SERVICE_LENGTH)
+    _service_name = _service_name.upper().strip()  
+
+    _service_user = input('What is the username?\n:').strip()
+    if len(_service_user) > USERNAME_LEGNTH:
+        _service_user = _validate_input(_service_user, USERNAME_LEGNTH)
+
     _service_password = input('What is the password?\n:')
+    if len(_service_password) > PASSWORD_LENGTH:
+        _service_password = _validate_input(_service_password, PASSWORD_LENGTH)
+
     user_info = [_service_name, _service_user, _service_password]
     c.execute(ADD_DATA_SQL, user_info)
     conn.commit()
-    #sheets.add_to_sheets(_service_name, _service_user, _service_password)
     print('Infomration stored successfully!')
 
 def viewPassword(): #view all passwords
@@ -48,34 +61,40 @@ def viewPassword(): #view all passwords
     results = c.fetchall()
     displayInfo(results)
 
+def _item_exits(choice):
+    while True:
+        c.execute('SELECT 1 FROM PASSWORDS WHERE SERVICE_NAME=? LIMIT 1', (choice,)) #returns [(1,)] for True or [(0,)] for False
+        choice_exists = (c.fetchone() is not None) #converts to True or False
+        if choice_exists: 
+            return choice
+        else:
+            choice = input(f'"{choice}" does not exist in your database, please enter the name again or "b" to go back to the menu\n:').strip().upper()
+            if choice == 'B':
+                return False
+
 def managePasswords(): #manage/edit passwords
     viewPassword()
-    choice = input('Which service would you like to modify/remove?\n:')
-    choice = choice.upper()
-    SEARCH_BY_KEY_SQL = "SELECT * FROM PASSWORDS WHERE SERVICE_NAME = ?"
-    c.execute(SEARCH_BY_KEY_SQL, (choice,)) #TODO: check to see if service exists
-    info = c.fetchall()
-    displayInfo(info)
-    action = input('tpye "d" to delete, or "m" to modify a password\n:')
-    action = action.lower()
+    choice = input('Which service would you like to modify/remove?\n:').strip().upper()
+    valid_input = _item_exits(choice)
+    if valid_input == False: #user chose to go to menu
+        return
+    action = input('tpye "d" to delete, or "m" to modify a password\n:').strip().upper()
     while True:
-        if action == 'd':
+        if action == 'D':
             DELETE_SQL = 'DELETE FROM PASSWORDS WHERE SERVICE_NAME = ?'
-            c.execute(DELETE_SQL, (choice,))
+            c.execute(DELETE_SQL, (valid_input,))
             conn.commit()
-            #sheets.delete_from_sheets(choice)
-            print(choice + ' has been deleted!')
+            print(valid_input + ' has been deleted!')
             break
-        elif action == 'm':
+        elif action == 'M':
             new_password = input('Please type the new password\n:')
             UPDATE_PASSWORD_SQL = 'UPDATE PASSWORDS SET USER_PASSWORD = ? WHERE SERVICE_NAME = ?'
-            c.execute(UPDATE_PASSWORD_SQL, (new_password, choice,))
+            c.execute(UPDATE_PASSWORD_SQL, (new_password, valid_input,))
             conn.commit()
-            #sheets.update_sheets(choice, new_password)
             print('Password updated!')
             break
         else:
-             action = input('Error: type "d" to delete, or "m" to modify a password\n:')
+             action = input('Error: type "d" to delete, or "m" to modify a password\n:').strip().upper()
     
 def resetPasswords(): #erases all entries, but keeps the table
     print('Are you sure you want to reset all passwords?')
@@ -88,7 +107,7 @@ def resetPasswords(): #erases all entries, but keeps the table
     else:
         return
 
-def user_interface():
+def user_interface(): 
     while True:
         print("~"*25)
         print('vp = view passwords')
@@ -97,7 +116,7 @@ def user_interface():
         print("rp = reset ALL passwords")
         print("q  = quit program")
         print('~'*25)
-        _input = input(':')
+        _input = input(':').strip().lower()
 
         if _input == 'vp':
             viewPassword()
@@ -109,7 +128,7 @@ def user_interface():
             resetPasswords()
         elif _input == 'q':
             return False
-        elif _input != 'vp' and _input != 'ap' and _input != 'mp' and _input != 'q':
+        else:
             print('Error: that is not a command.\n')  
 
 if __name__ == '__main__':
@@ -123,5 +142,4 @@ if __name__ == '__main__':
 
     createDB()
     print('\nWhat would you like to do?\n')
-    user_interface()   
-
+    user_interface()
