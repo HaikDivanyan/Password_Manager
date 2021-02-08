@@ -1,5 +1,7 @@
 import sqlite3
-#import sheets
+import sheets
+
+#c.fetchall() returns array of tuples
 
 SERVICE_LENGTH = 30 #max sizes for input fields
 USERNAME_LEGNTH = 30
@@ -29,7 +31,7 @@ def displayInfo(results): #display all the info selected
         print(x[2] + (' ' * (PASSWORD_LENGTH - len(x[2]))), end='|\n')
         print('-'* WIDTH)
 
-def _validate_input(name, size):
+def validateInput(name, size):
     while len(name) > size:
         name = input(f'this field can be no longer than {size} characters, please enter again\n:')
     return name
@@ -39,29 +41,31 @@ def addPassword():   # add a password to the database
 
     _service_name = input('What service what you like to add?\n:').strip().upper()
     if len(_service_name) > SERVICE_LENGTH:
-        _service_name = _validate_input(_service_name, SERVICE_LENGTH)
+        _service_name = validateInput(_service_name, SERVICE_LENGTH)
     _service_name = _service_name.upper().strip()  
 
     _service_user = input('What is the username?\n:').strip()
     if len(_service_user) > USERNAME_LEGNTH:
-        _service_user = _validate_input(_service_user, USERNAME_LEGNTH)
+        _service_user = validateInput(_service_user, USERNAME_LEGNTH)
 
     _service_password = input('What is the password?\n:')
     if len(_service_password) > PASSWORD_LENGTH:
-        _service_password = _validate_input(_service_password, PASSWORD_LENGTH)
+        _service_password = validateInput(_service_password, PASSWORD_LENGTH)
 
     user_info = [_service_name, _service_user, _service_password]
     c.execute(ADD_DATA_SQL, user_info)
     conn.commit()
     print('Infomration stored successfully!')
-
+    
 def viewPassword(): #view all passwords
     SORT_BY_KEY_SQL = "SELECT * FROM PASSWORDS ORDER BY SERVICE_NAME" #sorts them alphabetically by service name
     c.execute(SORT_BY_KEY_SQL)
     results = c.fetchall()
     displayInfo(results)
+    data = list(map(list, results))
+    sheets.updateSheet(data)
 
-def _item_exits(choice):
+def itemExists(choice):
     while True:
         c.execute('SELECT 1 FROM PASSWORDS WHERE SERVICE_NAME=? LIMIT 1', (choice,)) #returns [(1,)] for True or [(0,)] for False
         choice_exists = (c.fetchone() is not None) #converts to True or False
@@ -75,7 +79,7 @@ def _item_exits(choice):
 def managePasswords(): #manage/edit passwords
     viewPassword()
     choice = input('Which service would you like to modify/remove?\n:').strip().upper()
-    valid_input = _item_exits(choice)
+    valid_input = itemExists(choice)
     if valid_input == False: #user chose to go to menu
         return
     action = input('tpye "d" to delete, or "m" to modify a password\n:').strip().upper()
@@ -129,7 +133,11 @@ def user_interface():
         elif _input == 'q':
             return False
         else:
-            print('Error: that is not a command.\n')  
+            print('Error: that is not a command.\n')
+
+        viewPassword()
+
+
 
 if __name__ == '__main__':
     PASSWORD = '123456'
@@ -140,6 +148,6 @@ if __name__ == '__main__':
         else:
             print('Incorrect, try again')
 
-    createDB()
+    createDB()    
     print('\nWhat would you like to do?\n')
     user_interface()
